@@ -3,5 +3,4 @@ matplotlib
 seaborn
 pdfplumber
 python-docx
-scikit-learn
 nltk
