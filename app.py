@@ -7,8 +7,6 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-import numpy as np
 import nltk
 
 # --- Setup ---
@@ -37,7 +35,7 @@ def get_word_frequencies(text):
 # --- Streamlit UI ---
 st.set_page_config(page_title="Text Analysis App", layout="wide")
 st.title("📊 Text Analysis App")
-st.write("Upload a PDF or DOCX file to visualize word frequencies and explore word relationships.")
+st.write("Upload a PDF or DOCX file to visualize word frequencies.")
 
 uploaded_file = st.file_uploader("📁 Choose a file", type=["pdf", "docx"])
 
@@ -53,43 +51,31 @@ if uploaded_file:
 
     # Word frequency analysis
     word_freq = get_word_frequencies(text)
-    top_words = word_freq.most_common(20)
-    df = pd.DataFrame(top_words, columns=["Word", "Frequency"])
+    df = pd.DataFrame(word_freq.items(), columns=["Word", "Frequency"]).sort_values(by="Frequency", ascending=False)
+    top_words = df.head(20)
 
-    st.markdown(f"*Total Words (after filtering):* {sum(word_freq.values())}")
+    st.markdown(f"*Total Words (after filtering):* {df['Frequency'].sum()}")
 
     # --- WordCloud ---
     st.subheader("☁ WordCloud")
-    wordcloud = WordCloud(width=800, height=400, background_color="white").generate_from_frequencies(word_freq)
+    wordcloud = WordCloud(width=800, height=400, background_color="white").generate_from_frequencies(dict(word_freq))
     fig_wc, ax_wc = plt.subplots()
     ax_wc.imshow(wordcloud, interpolation='bilinear')
     ax_wc.axis("off")
     st.pyplot(fig_wc)
 
+    # --- Histogram ---
+    st.subheader("📈 Word Frequency Histogram")
+    fig_hist, ax_hist = plt.subplots()
+    ax_hist.hist(df["Frequency"], bins=30, color="skyblue", edgecolor="black")
+    ax_hist.set_title("Distribution of Word Frequencies")
+    ax_hist.set_xlabel("Frequency")
+    ax_hist.set_ylabel("Count")
+    st.pyplot(fig_hist)
+
     # --- Bar Chart ---
     st.subheader("📊 Top 20 Words - Bar Chart")
     fig_bar, ax_bar = plt.subplots()
-    sns.barplot(x="Frequency", y="Word", data=df, ax=ax_bar, palette="viridis")
+    sns.barplot(x="Frequency", y="Word", data=top_words, ax=ax_bar, palette="viridis")
     ax_bar.set_title("Most Frequent Words")
     st.pyplot(fig_bar)
-
-    # --- Word Co-occurrence Matrix (Confusion Matrix Style) ---
-    st.subheader("🔄 Word Co-occurrence Matrix")
-
-    # Use top 20 words for matrix
-    top_words_list = [word for word, _ in top_words]
-
-    # Vectorize sentences
-    sentences = re.split(r'[.!?]', text)
-    vectorizer = CountVectorizer(vocabulary=top_words_list, lowercase=True, stop_words='english')
-    X = vectorizer.fit_transform(sentences)
-
-    # Co-occurrence matrix
-    co_matrix = (X.T @ X).toarray()
-    np.fill_diagonal(co_matrix, 0)  # Remove self-co-occurrence
-
-    # Display heatmap
-    fig_cm, ax_cm = plt.subplots(figsize=(10, 8))
-    sns.heatmap(co_matrix, xticklabels=top_words_list, yticklabels=top_words_list, cmap="Reds", annot=True, fmt="d", ax=ax_cm)
-    ax_cm.set_title("Word Co-occurrence Matrix")
-    st.pyplot(fig_cm)
